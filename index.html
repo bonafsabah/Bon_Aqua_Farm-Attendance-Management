@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>현장 출퇴근 관리</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="bg-white w-full max-w-md rounded-2xl shadow-lg p-6 space-y-6">
+    
+    <div class="text-center">
+      <h1 class="text-2xl font-bold text-gray-800">☀️ 현장 출퇴근 관리</h1>
+      <p class="text-sm text-gray-500 mt-1">매일의 출근 기록을 입력해주세요.</p>
+      <div id="clock" class="mt-3 inline-block bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full font-mono text-xl font-bold tracking-wider">
+        00:00:00
+      </div>
+    </div>
+
+    <form id="attendanceForm" class="space-y-5">
+      <div class="space-y-1.5">
+        <label class="text-sm font-semibold text-gray-700">직원명</label>
+        <input type="text" id="employeeName" placeholder="이름을 입력하세요" required
+          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800">
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-sm font-semibold text-gray-700">오늘의 근무 유형</label>
+        <div class="grid grid-cols-2 gap-2" id="shiftGroup">
+          <button type="button" data-value="일반" class="shift-btn py-2.5 rounded-xl text-sm font-medium bg-blue-600 text-white shadow-md">일반 (08시)</button>
+          <button type="button" data-value="토요근무" class="shift-btn py-2.5 rounded-xl text-sm font-medium bg-gray-50 text-gray-600 hover:bg-gray-100">토요근무 (08시)</button>
+          <button type="button" data-value="야간경비" class="shift-btn py-2.5 rounded-xl text-sm font-medium bg-gray-50 text-gray-600 hover:bg-gray-100">야간경비</button>
+          <button type="button" data-value="산란작업" class="shift-btn py-2.5 rounded-xl text-sm font-medium bg-gray-50 text-gray-600 hover:bg-gray-100">산란작업</button>
+        </div>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-sm font-semibold text-gray-700">근태 상태</label>
+        <select id="status" class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800">
+          <option value="정상출근">정상출근 (시간 체크)</option>
+          <option value="연차">연차 사용</option>
+          <option value="결근">결근</option>
+        </select>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-sm font-semibold text-gray-700">출근 카드 / 인증 사진</label>
+        <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-4 bg-gray-50 relative">
+          <div id="previewContainer" class="hidden w-full h-40 relative">
+            <img id="imagePreview" src="" alt="미리보기" class="w-full h-full object-cover rounded-lg">
+            <button type="button" id="removePhotoBtn" class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs">✕</button>
+          </div>
+          <label id="uploadLabel" class="cursor-pointer w-full text-center py-6">
+            <span class="text-2xl block mb-1">📸</span>
+            <span class="text-sm text-gray-500 font-medium">사진 촬영 또는 파일 선택</span>
+            <input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden" required>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold text-base hover:bg-blue-700 transition shadow-lg active:scale-[0.98]">
+        출근 기록하기
+      </button>
+    </form>
+
+    <div id="successMessage" class="hidden text-center py-8 space-y-4">
+      <div class="text-5xl">✅</div>
+      <h2 class="text-xl font-bold text-gray-800">출근 등록 완료!</h2>
+      <p class="text-gray-500 text-sm">성공적으로 기록되었습니다.</p>
+      <button type="button" id="resetBtn" class="w-full bg-gray-200 text-gray-700 py-2.5 rounded-xl font-semibold hover:bg-gray-300">
+        새로 등록하기
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // 상태 관리용 변수
+    let selectedShift = '일반';
+
+    // 실시간 시계 기능
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('clock').innerText = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }, 1000);
+
+    // 근무 유형 버튼 선택 이벤트
+    document.querySelectorAll('.shift-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.shift-btn').forEach(b => b.className = 'shift-btn py-2.5 rounded-xl text-sm font-medium bg-gray-50 text-gray-600 hover:bg-gray-100');
+        e.target.className = 'shift-btn py-2.5 rounded-xl text-sm font-medium bg-blue-600 text-white shadow-md';
+        selectedShift = e.target.getAttribute('data-value');
+      });
+    });
+
+    // 사진 미리보기 기능
+    const photoInput = document.getElementById('photoInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const uploadLabel = document.getElementById('uploadLabel');
+
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        imagePreview.src = URL.createObjectURL(file);
+        previewContainer.classList.remove('hidden');
+        uploadLabel.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('removePhotoBtn').addEventListener('click', () => {
+      photoInput.value = '';
+      previewContainer.classList.add('hidden');
+      uploadLabel.classList.remove('hidden');
+    });
+
+    // 출근 기록 제출 버튼 클릭 시
+    document.getElementById('attendanceForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('employeeName').value;
+      const status = document.getElementById('status').value;
+      const now = new Date();
+      
+      // 지각 자동 체크 로직 (8시 기준)
+      let finalStatus = status;
+      if (status === '정상출근' && (selectedShift === '일반' || selectedShift === '토요근무')) {
+        if (now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() > 0)) {
+          finalStatus = '지각';
+        }
+      }
+
+      // 결과 확인용 알림 (나중에 여기에 DB를 연결합니다)
+      alert(`[${name}]님 기록 완료\n근무: ${selectedShift}\n결과: ${finalStatus}\n시간: ${now.toLocaleTimeString()}`);
+      
+      // 화면 전환
+      document.getElementById('attendanceForm').classList.add('hidden');
+      document.getElementById('successMessage').classList.remove('hidden');
+    });
+
+    // 새로고침(리셋) 버튼
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      document.getElementById('attendanceForm').reset();
+      photoInput.value = '';
+      previewContainer.classList.add('hidden');
+      uploadLabel.classList.remove('hidden');
+      document.getElementById('attendanceForm').classList.remove('hidden');
+      document.getElementById('successMessage').classList.add('hidden');
+    });
+  </script>
+</body>
+</html>
