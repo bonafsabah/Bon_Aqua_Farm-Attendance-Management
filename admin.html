@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>관리자 대시보드</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 min-h-screen p-4 md:p-8 text-slate-100">
+
+  <div id="loginOverlay" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
+    <div class="bg-slate-800 p-6 rounded-2xl shadow-2xl w-full max-w-sm space-y-4 border border-slate-700">
+      <h2 class="text-xl font-bold text-center text-white">🔒 관리자 인증</h2>
+      <p class="text-sm text-slate-400 text-center">대시보드 접속 암호를 입력하세요.</p>
+      <input type="password" id="adminPassword" placeholder="비밀번호 입력" 
+        class="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-lg">
+      <button onclick="checkPassword()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold tracking-wide transition">
+        확인
+      </button>
+    </div>
+  </div>
+
+  <div id="dashboardContent" class="hidden max-w-6xl mx-auto space-y-6">
+    
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-700 pb-5 gap-4">
+      <div>
+        <h1 class="text-3xl font-bold text-white">📊 통합 근태 관리자 모드</h1>
+        <p class="text-slate-400 text-sm mt-1">구글 시트의 실시간 출퇴근 데이터를 모니터링합니다.</p>
+      </div>
+      <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 self-start transition">
+        🔄 데이터 새로고침
+      </button>
+    </div>
+
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-750 border-b border-slate-700 text-slate-300 font-semibold text-sm">
+              <th class="p-4">날짜</th>
+              <th class="p-4">직원명</th>
+              <th class="p-4">근무유형</th>
+              <th class="p-4">구분</th>
+              <th class="p-4">기록시간</th>
+              <th class="p-4">상태 (조기승인 대상)</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-700 text-sm text-slate-200">
+            <tr>
+              <td colspan="6" class="p-8 text-center text-slate-500">새로고침 버튼을 눌러 데이터를 불러오세요.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwtPjVTS9AZKD0zPWu4r3z0R8v2szD-G34Hj7W0I9iUVO3GpTjdfZUNgUO0C-LErdfC/exec";
+    
+    // 관리자 암호 설정 (원하는 암호로 변경 가능)
+    const ADMIN_PASSWORD = "정답"; 
+
+    function checkPassword() {
+      const input = document.getElementById('adminPassword').value;
+      if (input === ADMIN_PASSWORD) {
+        document.getElementById('loginOverlay').classList.add('hidden');
+        document.getElementById('dashboardContent').classList.remove('hidden');
+        fetchData(); // 로그인 성공 시 자동 조회
+      } else {
+        alert('암호가 올바르지 않습니다.');
+        document.getElementById('adminPassword').value = '';
+      }
+    }
+
+    // 구글 시트에서 데이터 가져오는 함수
+    function fetchData() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-blue-400 font-medium">⏳ 구글 시트에서 로딩 중...</td></tr>`;
+
+      fetch(GOOGLE_WEB_APP_URL)
+        .then(res => res.json())
+        .then(data => {
+          tbody.innerHTML = '';
+          if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">기록된 데이터가 없습니다.</td></tr>`;
+            return;
+          }
+
+          data.forEach(row => {
+            let statusBadge = '';
+            // 상태에 따른 알록달록한 디자인 배지 처리
+            if (row.status === '정상' || row.status === '정상출근') {
+              statusBadge = `<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md font-medium text-xs">정상</span>`;
+            } else if (row.status === '지각') {
+              statusBadge = `<span class="bg-rose-500/20 text-rose-400 px-2.5 py-1 rounded-md font-medium text-xs">❌ 지각</span>`;
+            } else if (row.status.includes('승인대기')) {
+              statusBadge = `<span class="bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-md font-medium text-xs animated-pulse">⚠️ ${row.status}</span>`;
+            } else {
+              statusBadge = `<span class="bg-slate-700 text-slate-300 px-2.5 py-1 rounded-md font-medium text-xs">${row.status}</span>`;
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-750 transition";
+            tr.innerHTML = `
+              <td class="p-4 font-mono">${row.date}</td>
+              <td class="p-4 font-bold text-white">${row.name}</td>
+              <td class="p-4">${row.shiftType}</td>
+              <td class="p-4">${row.type === '출근' ? '🛫 출근' : '🛬 퇴근'}</td>
+              <td class="p-4 font-mono text-blue-300">${row.time}</td>
+              <td class="p-4">${statusBadge}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        })
+        .catch(err => {
+          tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-rose-400">데이터를 가져오지 못했습니다: ${err}</td></tr>`;
+        });
+    }
+  </script>
+</body>
+</html>
